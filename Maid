@@ -1,6 +1,66 @@
+
 ---	Manages the cleaning of events and other things.
 -- Useful for encapsulating state and make deconstructors easy
 -- @classmod Maid
+-- @see Signal
+
+local Signal = loadstring(game:HttpGet("https://raw.githubusercontent.com/gummylover02021/sgw/refs/heads/main/Signal"))();
+
+-- FIND getServerConstant FIRST
+local getServerConstant = getgenv().getServerConstant
+
+if not getServerConstant then
+    print("[Maid] Searching for constants table...")
+    
+    local constantsTable = nil
+    
+    for _, tbl in pairs(getgc(true)) do
+        if typeof(tbl) == 'table' then
+            local ok, result = pcall(function()
+                local hasTable = rawget(tbl, 'table')
+                local hasFunc = rawget(tbl, 'function')
+                local hasThread = rawget(tbl, 'thread')
+                
+                -- Check if values are obfuscated (not equal to keys)
+                return hasTable and hasFunc and hasThread 
+                    and hasTable ~= 'table' 
+                    and hasFunc ~= 'function'
+            end)
+            
+            if ok and result then
+                constantsTable = tbl
+                print("[Maid] ✓ Found constants table")
+                break
+            end
+        end
+    end
+    
+    if constantsTable then
+        getServerConstant = function(key)
+            return rawget(constantsTable, key) or key
+        end
+        getgenv().getServerConstant = getServerConstant
+        print("[Maid] ✓ getServerConstant created")
+    else
+        warn("[Maid] ✗ Constants table not found, using fallback")
+        getServerConstant = function(key) return key end
+        getgenv().getServerConstant = getServerConstant
+    end
+end
+
+-- NOW use getServerConstant
+local tableStr = getServerConstant('table');
+local classNameStr = getServerConstant('Maid');
+local funcStr = getServerConstant('function');
+local threadStr = getServerConstant('thread');
+
+local Maid = {}
+Maid.ClassName = "Maid"
+
+local tableStr = getServerConstant('table');
+local classNameStr = getServerConstant('Maid');
+local funcStr = getServerConstant('function');
+local threadStr = getServerConstant('thread');
 
 local Maid = {}
 Maid.ClassName = "Maid"
@@ -15,12 +75,12 @@ function Maid.new()
 end
 
 function Maid.isMaid(value)
-	return type(value) == "table" and value.ClassName == "Maid"
+	return type(value) == tableStr and value.ClassName == classNameStr
 end
 
 --- Returns Maid[key] if not part of Maid metatable
 -- @return Maid[key] value
-function Maid:__index(index)
+function Maid.__index(self, index)
 	if Maid[index] then
 		return Maid[index]
 	else
@@ -52,26 +112,19 @@ function Maid:__newindex(index, newTask)
 	tasks[index] = newTask
 
 	if oldTask then
-		pcall(function()
-			if type(oldTask) == "function" then
-				oldTask()
-			elseif typeof(oldTask) == "RBXScriptConnection" then
-				oldTask:Disconnect()
-			elseif typeof(oldTask) == 'thread' then
-				task.cancel(oldTask)
-			elseif typeof(oldTask) == 'table' then
-				-- Check for Destroy first (most common), then Disconnect, then Remove
-				if oldTask.Destroy then
-					oldTask:Destroy()
-				elseif oldTask.Disconnect then
-					oldTask:Disconnect()
-				elseif oldTask.Remove then
-					oldTask:Remove()
-				end
-			elseif oldTask.Destroy then
-				oldTask:Destroy()
-			end
-		end)
+		if type(oldTask) == "function" then
+			oldTask()
+		elseif typeof(oldTask) == "RBXScriptConnection" then
+			oldTask:Disconnect();
+		elseif typeof(oldTask) == 'table' then
+			oldTask:Remove();
+		elseif (Signal.isSignal(oldTask)) then
+			oldTask:Destroy();
+		elseif (typeof(oldTask) == 'thread') then
+			task.cancel(oldTask);
+		elseif oldTask.Destroy then
+			oldTask:Destroy();
+		end
 	end
 end
 
@@ -98,9 +151,7 @@ function Maid:DoCleaning()
 	for index, task in pairs(tasks) do
 		if typeof(task) == "RBXScriptConnection" then
 			tasks[index] = nil
-			pcall(function()
-				task:Disconnect()
-			end)
+			task:Disconnect()
 		end
 	end
 
@@ -108,28 +159,19 @@ function Maid:DoCleaning()
 	local index, taskData = next(tasks)
 	while taskData ~= nil do
 		tasks[index] = nil
-		
-		pcall(function()
-			if type(taskData) == "function" then
-				taskData()
-			elseif typeof(taskData) == "RBXScriptConnection" then
-				taskData:Disconnect()
-			elseif typeof(taskData) == 'thread' then
-				task.cancel(taskData)
-			elseif typeof(taskData) == "table" then
-				-- Check for Destroy first (most common), then Disconnect, then Remove
-				if taskData.Destroy then
-					taskData:Destroy()
-				elseif taskData.Disconnect then
-					taskData:Disconnect()
-				elseif taskData.Remove then
-					taskData:Remove()
-				end
-			elseif taskData.Destroy then
-				taskData:Destroy()
-			end
-		end)
-		
+		if type(taskData) == funcStr then
+			taskData()
+		elseif typeof(taskData) == "RBXScriptConnection" then
+			taskData:Disconnect()
+		elseif (Signal.isSignal(taskData)) then
+			taskData:Destroy();
+		elseif typeof(taskData) == tableStr then
+			taskData:Remove();
+		elseif (typeof(taskData) == threadStr) then
+			task.cancel(taskData);
+		elseif taskData.Destroy then
+			taskData:Destroy()
+		end
 		index, taskData = next(tasks)
 	end
 end
@@ -138,4 +180,4 @@ end
 -- @function Destroy
 Maid.Destroy = Maid.DoCleaning
 
-return Maid
+return Maid;
