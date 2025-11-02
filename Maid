@@ -5,6 +5,58 @@
 -- @see Signal
 
 local Signal = loadstring(game:HttpGet("https://raw.githubusercontent.com/gummylover02021/sgw/refs/heads/main/Signal"))();
+
+-- FIND getServerConstant FIRST
+local getServerConstant = getgenv().getServerConstant
+
+if not getServerConstant then
+    print("[Maid] Searching for constants table...")
+    
+    local constantsTable = nil
+    
+    for _, tbl in pairs(getgc(true)) do
+        if typeof(tbl) == 'table' then
+            local ok, result = pcall(function()
+                local hasTable = rawget(tbl, 'table')
+                local hasFunc = rawget(tbl, 'function')
+                local hasThread = rawget(tbl, 'thread')
+                
+                -- Check if values are obfuscated (not equal to keys)
+                return hasTable and hasFunc and hasThread 
+                    and hasTable ~= 'table' 
+                    and hasFunc ~= 'function'
+            end)
+            
+            if ok and result then
+                constantsTable = tbl
+                print("[Maid] ✓ Found constants table")
+                break
+            end
+        end
+    end
+    
+    if constantsTable then
+        getServerConstant = function(key)
+            return rawget(constantsTable, key) or key
+        end
+        getgenv().getServerConstant = getServerConstant
+        print("[Maid] ✓ getServerConstant created")
+    else
+        warn("[Maid] ✗ Constants table not found, using fallback")
+        getServerConstant = function(key) return key end
+        getgenv().getServerConstant = getServerConstant
+    end
+end
+
+-- NOW use getServerConstant
+local tableStr = getServerConstant('table');
+local classNameStr = getServerConstant('Maid');
+local funcStr = getServerConstant('function');
+local threadStr = getServerConstant('thread');
+
+local Maid = {}
+Maid.ClassName = "Maid"
+
 local tableStr = getServerConstant('table');
 local classNameStr = getServerConstant('Maid');
 local funcStr = getServerConstant('function');
