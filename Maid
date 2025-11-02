@@ -1,166 +1,141 @@
--- Replace the external Maid load with this fixed version:
-local Signal = loadstring(game:HttpGet("https://raw.githubusercontent.com/gummylover02021/sgw/refs/heads/main/Signal"))();
-
--- FIND getServerConstant FIRST
-local getServerConstant = getgenv().getServerConstant
-
-if not getServerConstant then
-    print("[Maid] Searching for constants table...")
-    
-    local constantsTable = nil
-    
-    for _, tbl in pairs(getgc(true)) do
-        if typeof(tbl) == 'table' then
-            local ok, result = pcall(function()
-                local hasTable = rawget(tbl, 'table')
-                local hasFunc = rawget(tbl, 'function')
-                local hasThread = rawget(tbl, 'thread')
-                
-                return hasTable and hasFunc and hasThread 
-                    and hasTable ~= 'table' 
-                    and hasFunc ~= 'function'
-            end)
-            
-            if ok and result then
-                constantsTable = tbl
-                print("[Maid] ✓ Found constants table")
-                break
-            end
-        end
-    end
-    
-    if constantsTable then
-        getServerConstant = function(key)
-            return rawget(constantsTable, key) or key
-        end
-        getgenv().getServerConstant = getServerConstant
-        print("[Maid] ✓ getServerConstant created")
-    else
-        warn("[Maid] ✗ Constants table not found, using fallback")
-        getServerConstant = function(key) return key end
-        getgenv().getServerConstant = getServerConstant
-    end
-end
-
-local tableStr = getServerConstant('table');
-local classNameStr = getServerConstant('Maid');
-local funcStr = getServerConstant('function');
-local threadStr = getServerConstant('thread');
+---	Manages the cleaning of events and other things.
+-- Useful for encapsulating state and make deconstructors easy
+-- @classmod Maid
 
 local Maid = {}
 Maid.ClassName = "Maid"
 
+--- Returns a new Maid object
+-- @constructor Maid.new()
+-- @treturn Maid
 function Maid.new()
-    return setmetatable({
-        _tasks = {}
-    }, Maid)
+	return setmetatable({
+		_tasks = {}
+	}, Maid)
 end
 
 function Maid.isMaid(value)
-    return type(value) == tableStr and value.ClassName == classNameStr
+	return type(value) == "table" and value.ClassName == "Maid"
 end
 
-function Maid.__index(self, index)
-    if Maid[index] then
-        return Maid[index]
-    else
-        return self._tasks[index]
-    end
+--- Returns Maid[key] if not part of Maid metatable
+-- @return Maid[key] value
+function Maid:__index(index)
+	if Maid[index] then
+		return Maid[index]
+	else
+		return self._tasks[index]
+	end
 end
 
--- FIXED: Better cleanup handling
+--- Add a task to clean up. Tasks given to a maid will be cleaned when
+--  maid[index] is set to a different value.
+-- @usage
+-- Maid[key] = (function)         Adds a task to perform
+-- Maid[key] = (event connection) Manages an event connection
+-- Maid[key] = (Maid)             Maids can act as an event connection, allowing a Maid to have other maids to clean up.
+-- Maid[key] = (Object)           Maids can cleanup objects with a `Destroy` method
+-- Maid[key] = nil                Removes a named task. If the task is an event, it is disconnected. If it is an object,
+--                                it is destroyed.
 function Maid:__newindex(index, newTask)
-    if Maid[index] ~= nil then
-        error(("'%s' is reserved"):format(tostring(index)), 2)
-    end
+	if Maid[index] ~= nil then
+		error(("'%s' is reserved"):format(tostring(index)), 2)
+	end
 
-    local tasks = self._tasks
-    local oldTask = tasks[index]
+	local tasks = self._tasks
+	local oldTask = tasks[index]
 
-    if oldTask == newTask then
-        return
-    end
+	if oldTask == newTask then
+		return
+	end
 
-    tasks[index] = newTask
+	tasks[index] = newTask
 
-    if oldTask then
-        if type(oldTask) == "function" then
-            oldTask()
-        elseif typeof(oldTask) == "RBXScriptConnection" then
-            oldTask:Disconnect()
-        elseif Signal.isSignal(oldTask) then
-            oldTask:Destroy()
-        elseif typeof(oldTask) == 'thread' then
-            task.cancel(oldTask)
-        elseif typeof(oldTask) == 'table' then
-            -- FIX: Check for Remove, Destroy, or Disconnect methods
-            if oldTask.Remove then
-                oldTask:Remove()
-            elseif oldTask.Destroy then
-                oldTask:Destroy()
-            elseif oldTask.Disconnect then
-                oldTask:Disconnect()
-            end
-        elseif oldTask.Destroy then
-            oldTask:Destroy()
-        end
-    end
+	if oldTask then
+		pcall(function()
+			if type(oldTask) == "function" then
+				oldTask()
+			elseif typeof(oldTask) == "RBXScriptConnection" then
+				oldTask:Disconnect()
+			elseif typeof(oldTask) == 'thread' then
+				task.cancel(oldTask)
+			elseif typeof(oldTask) == 'table' then
+				-- Check for Destroy first (most common), then Disconnect, then Remove
+				if oldTask.Destroy then
+					oldTask:Destroy()
+				elseif oldTask.Disconnect then
+					oldTask:Disconnect()
+				elseif oldTask.Remove then
+					oldTask:Remove()
+				end
+			elseif oldTask.Destroy then
+				oldTask:Destroy()
+			end
+		end)
+	end
 end
 
+--- Same as indexing, but uses an incremented number as a key.
+-- @param task An item to clean
+-- @treturn number taskId
 function Maid:GiveTask(task)
-    if not task then
-        error("Task cannot be false or nil", 2)
-    end
+	if not task then
+		error("Task cannot be false or nil", 2)
+	end
 
-    local taskId = #self._tasks+1
-    self[taskId] = task
+	local taskId = #self._tasks+1
+	self[taskId] = task
 
-    return taskId
+	return taskId
 end
 
--- FIXED: Better cleanup in DoCleaning
+--- Cleans up all tasks.
+-- @alias Destroy
 function Maid:DoCleaning()
-    local tasks = self._tasks
+	local tasks = self._tasks
 
-    -- Disconnect all events first as we know this is safe
-    for index, task in pairs(tasks) do
-        if typeof(task) == "RBXScriptConnection" then
-            tasks[index] = nil
-            task:Disconnect()
-        end
-    end
+	-- Disconnect all events first as we know this is safe
+	for index, task in pairs(tasks) do
+		if typeof(task) == "RBXScriptConnection" then
+			tasks[index] = nil
+			pcall(function()
+				task:Disconnect()
+			end)
+		end
+	end
 
-    -- Clear out tasks table completely
-    local index, taskData = next(tasks)
-    while taskData ~= nil do
-        tasks[index] = nil
-        
-        if type(taskData) == funcStr then
-            taskData()
-        elseif typeof(taskData) == "RBXScriptConnection" then
-            taskData:Disconnect()
-        elseif Signal.isSignal(taskData) then
-            taskData:Destroy()
-        elseif typeof(taskData) == 'thread' then
-            task.cancel(taskData)
-        elseif typeof(taskData) == tableStr then
-            -- FIX: Check for Remove, Destroy, or Disconnect methods
-            if taskData.Remove then
-                taskData:Remove()
-            elseif taskData.Destroy then
-                taskData:Destroy()
-            elseif taskData.Disconnect then
-                taskData:Disconnect()
-            end
-        elseif taskData.Destroy then
-            taskData:Destroy()
-        end
-        
-        index, taskData = next(tasks)
-    end
+	-- Clear out tasks table completely, even if clean up tasks add more tasks to the maid
+	local index, taskData = next(tasks)
+	while taskData ~= nil do
+		tasks[index] = nil
+		
+		pcall(function()
+			if type(taskData) == "function" then
+				taskData()
+			elseif typeof(taskData) == "RBXScriptConnection" then
+				taskData:Disconnect()
+			elseif typeof(taskData) == 'thread' then
+				task.cancel(taskData)
+			elseif typeof(taskData) == "table" then
+				-- Check for Destroy first (most common), then Disconnect, then Remove
+				if taskData.Destroy then
+					taskData:Destroy()
+				elseif taskData.Disconnect then
+					taskData:Disconnect()
+				elseif taskData.Remove then
+					taskData:Remove()
+				end
+			elseif taskData.Destroy then
+				taskData:Destroy()
+			end
+		end)
+		
+		index, taskData = next(tasks)
+	end
 end
 
+--- Alias for DoCleaning()
+-- @function Destroy
 Maid.Destroy = Maid.DoCleaning
 
--- Now assign to the variable
-local Maid = Maid
+return Maid
