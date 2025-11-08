@@ -138,15 +138,16 @@ local interface = self.interface;
 	self.bin = {};
   local playerName;
 self.character = interface.getCharacter(self.player);
+if playerName ~= nil then
 local children = getChildren(self.character);
 for i = 1, #children do
 local part = children[i];
---print(part.Name)
-if part:FindFirstChild("FakeHumanoid") and playerName ~= part.Name then
+
+if part:FindFirstChild("FakeHumanoid") then
 	playerName = part.Name;
 end
 end
-
+end
 	self.drawings = {
 		box3d = {
 			{
