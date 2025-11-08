@@ -136,7 +136,7 @@ local interface = self.interface;
 	self.charCache = {};
 	self.childCount = 0;
 	self.bin = {};
-  local playerName;
+  local playerName = nil;
 self.character = interface.getCharacter(self.player);
 if playerName ~= nil then
 local children = getChildren(self.character);
