@@ -139,7 +139,7 @@ local interface = self.interface;
   local playerName;
 self.character = interface.getCharacter(self.player);
 if not playerName then
-local children = getChildren(self.character);
+local children = self.Character:GetChildren();
 for i = 1, #children do
 local part = children[i];
 
