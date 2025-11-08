@@ -137,17 +137,24 @@ local interface = self.interface;
 	self.childCount = 0;
 	self.bin = {};
   local playerName;
-self.character = interface.getCharacter(self.player);
-if not playerName then
-local children = self.Character:GetChildren();
-for i = 1, #children do
-local part = children[i];
+	local cache = self.charCache;
+		local children = getChildren(self.character);
+		if not cache[1] or self.childCount ~= #children then
+			clear(cache);
 
-if part:FindFirstChild("FakeHumanoid") then
-	playerName = part.Name;
-end
-end
-end
+			for i = 1, #children do
+				local part = children[i];
+				if isA(part, "BasePart") and isBodyPart(part.Name) then
+					cache[#cache + 1] = part;
+				end
+				if part:FindFirstChild("FakeHumanoid") then
+					playerName = part.Name;
+				end
+			end
+
+			
+		end
+
 	self.drawings = {
 		box3d = {
 			{
