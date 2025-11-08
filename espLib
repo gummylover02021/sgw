@@ -136,8 +136,9 @@ function EspObject:Construct()
 	self.childCount = 0;
 	self.bin = {};
   local playerName;
-if self.player.Character then
-  for i,v in pairs(self.player.Character:GetChildren()) do
+local character = interface.getCharacter(self.player);
+if character then
+  for i,v in pairs(character:GetChildren()) do
   	if v:IsA("Model") and v:FindFirstChild("FakeHumanoid") then
    		playerName = v.Name
   	end
