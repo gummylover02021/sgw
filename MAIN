@@ -1,0 +1,1129 @@
+getgenv().SecureMode = true
+local Starlight = loadstring(game:HttpGet("https://raw.nebulasoftworks.xyz/starlight"))()  
+local NebulaIcons = loadstring(game:HttpGet("https://raw.nebulasoftworks.xyz/nebula-icon-library-loader"))()
+
+-- 1. Load the library
+local Sense = loadstring(game:HttpGet('https://sirius.menu/sense'))()
+
+-- 2. Change the configuration.
+Sense.teamSettings.enemy.enabled = true
+Sense.teamSettings.friendly.enabled = true
+Sense.teamSettings.friendly.box = true
+Sense.teamSettings.enemy.box = true
+Sense.teamSettings.friendly.name = true
+Sense.teamSettings.enemy.name = true
+Sense.teamSettings.friendly.healthBar = true
+Sense.teamSettings.enemy.healthBar = true
+Sense.teamSettings.enemy.boxColor[1] = Color3.new(0, 0.25, 0.75)
+
+
+local Services = loadstring(game:HttpGet("https://raw.githubusercontent.com/gummylover02021/sgw/refs/heads/main/Services"))()
+local Maid = loadstring(game:HttpGet("https://raw.githubusercontent.com/gummylover02021/sgw/refs/heads/main/Maid"))()
+local ControlModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/gummylover02021/sgw/refs/heads/main/ControlModule"))()
+local findPlayer = loadstring(game:HttpGet("https://raw.githubusercontent.com/gummylover02021/sgw/refs/heads/main/findPlayer"))()
+
+local Players, Lighting, RunService, UserInputService, ReplicatedStorage, CoreGui = Services:Get(
+    'Players', 'Lighting', 'RunService', 'UserInputService', 'ReplicatedStorage', 'CoreGui'
+)
+
+local TeleportService, CollectionService, HttpService, TweenService, StarterGui = Services:Get(
+    'TeleportService', 'CollectionService', 'HttpService', 'TweenService', 'StarterGui'
+)
+
+local LocalPlayer = Players.LocalPlayer
+local maid = Maid.new()
+local Mouse = LocalPlayer:GetMouse()
+
+-- ============================================
+-- VARIABLES
+-- ============================================
+local playerGotManualKick = false
+local getKey = nil
+local isGaia = true
+local debugMode = false
+local isUserTrolled = false
+local sprinting = false
+local oldFireServer
+
+local Trinkets = {};
+local spellValues = {};
+local Ingredients = {"Acorn Light","Glow Scroom","Lava Flower","Canewood","Moss Plant","Freeleaf","Trote","Scroom","Zombie Scroom","Potato","Tellbloom","Polar Plant","Strange Tentacle","Vile Seed","Ice Jar","Dire Flower","Crown Flower","Bloodthorn","Periascroom","Orcher Leaf","Uncanny Tentacle","Creely","Desert Mist","Snow Scroom", "Silent Night", "Sky Orchid", "Evoflower", "Vulture Egg"};
+
+local trinkets = {};
+local trinketsData = {};
+
+-- Remote variables
+local tango, fallDamage, dodge, manaCharge, dialog, dolorosa, changeArea
+
+local library = {
+    flags = {
+        noFallDamage = false,
+        collectorAutoFarm = false,
+        antiBackfire = false,
+        temperatureLock = false,
+        speedHack = false,
+        fullbright = false,
+        toggleKillbricks = false,
+        noFog = false,
+        flight = false,
+        logWhenNotFull = false,
+        flySpeed = 20,
+        silentAim = false,
+        spellStack = false,
+        autoBard = false,
+        autopickupIngredients = false,
+        autopickup = false,
+    }
+}
+
+local spellValues = {}
+local rayParams = RaycastParams.new()
+
+-- Passwords
+local TANGO_PASSWORD = 30195.341357415226
+local POST_DIALOGUE_PASSWORD = 404.5041892976703
+local DODGE_PASSWORD = 398.00010021400533
+local APPLY_FALL_DAMAGE_PASSWORD = 90.32503962905011
+local SET_MANA_CHARGE_STATE_PASSWORD = 27.81839265298673
+
+print("\n[BYPASS] Starting initialization...")
+
+-- ============================================
+-- HELPER FUNCTIONS
+-- ============================================
+local function chargeMana()
+    if not manaCharge then return end
+    if isGaia then
+        manaCharge.FireServer(manaCharge, {math.random(1, 10), math.random()})
+    else
+        manaCharge.FireServer(manaCharge, true)
+    end
+end
+
+local function dechargeMana()
+    if not manaCharge then return end
+    if isGaia then
+        manaCharge.FireServer(manaCharge)
+    else
+        manaCharge.FireServer(manaCharge, false)
+    end
+end
+
+local function canUseMana()
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    if character:FindFirstChild('Grabbed') then return end
+    if character:FindFirstChild('Climbing') then return end
+    if character:FindFirstChild('ClimbCoolDown') then return end
+    if character:FindFirstChild('ManaStop') then return end
+    if character:FindFirstChild('SpellBlocking') then return end
+    if character:FindFirstChild('ActiveCast') then return end
+    if character:FindFirstChild('Stun') then return end
+    
+    if CollectionService:HasTag(character, 'Knocked') then return end
+    if CollectionService:HasTag(character, 'Unconscious') then return end
+    
+    return true
+end
+
+local function kickPlayer(reason)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('Danger') then
+        repeat task.wait() until not LocalPlayer.Character:FindFirstChild('Danger')
+    end
+    playerGotManualKick = true
+    LocalPlayer:Kick(reason)
+    task.wait(1)
+end
+
+-- Compatibility functions
+local function IsA(obj, className)
+    return typeof(obj) == 'Instance' and obj:IsA(className)
+end
+
+local function FindFirstChild(parent, childName, recursive)
+    return parent:FindFirstChild(childName, recursive)
+end
+
+local function IsDescendantOf(obj, parent)
+    return obj:IsDescendantOf(parent)
+end
+
+local function SX_VM_CNONE()
+    -- Placeholder for VM check
+end
+
+-- ============================================
+-- ANTI-CHEAT BYPASS (FROM DOCUMENT 3)
+-- ============================================
+do
+    local Humanoid = Instance.new('Humanoid', game)
+    local Animation = Instance.new('Animation')
+    Animation.AnimationId = 'rbxassetid://4595066903'
+    local Play = Humanoid:LoadAnimation(Animation).Play
+    Humanoid:Destroy()
+
+    local function grabKeyHandler()
+        if isGaia then
+            for i, v in next, getgc() do
+                if typeof(v) == 'function' and islclosure(v) and table.find(getconstants(v), 'plum') then
+                    local keyHandler = getupvalue(v, 1)
+                    if typeof(keyHandler) == 'table' and typeof(rawget(keyHandler, 1)) == 'function' then
+                        getKey = rawget(keyHandler, 1)
+                        break
+                    end
+                end
+            end
+        else
+            for i, v in next, getgc(true) do
+                if typeof(v) == 'table' and rawget(v, 'getKey') then
+                    getKey = rawget(v, 'getKey')
+                    break
+                end
+            end
+        end
+    end
+
+    getgenv().remotes = {}
+    
+    local function setRemote(name, remote, isPcall)
+        if isPcall then remote = isPcall end
+        getgenv().remotes[name] = remote
+
+        if name == 'tango' then
+            tango = remote
+        elseif name == 'fallDamage' then
+            fallDamage = remote
+        elseif name == 'dodge' then
+            dodge = remote
+        elseif name == 'manaCharge' then
+            manaCharge = remote
+        elseif name == 'dialog' then
+            dialog = remote
+        elseif name == 'dolorosa' then
+            dolorosa = remote
+        elseif name == 'changeArea' then
+            changeArea = remote
+        end
+    end
+
+    grabKeyHandler()
+    if not getKey then
+        warn('Didn\'t get keyhandler, retrying with loop...')
+        repeat
+            grabKeyHandler()
+            task.wait(2)
+        until getKey
+    end
+
+    print("[BYPASS] ✓ Found getKey")
+
+    hookfunction(Instance.new('Part').BreakJoints, newcclosure(function() end))
+
+    local oldPlay
+    oldPlay = hookfunction(Play, newcclosure(function(self)
+        if isUserTrolled then return oldPlay(self) end
+        if typeof(self) == 'Instance' and self.ClassName == 'AnimationTrack' and string.find(self.Animation.AnimationId, '4595066903') then
+            return warn('Ban Attempt -> Play')
+        end
+        return oldPlay(self)
+    end))
+
+    oldFireServer = hookfunction(Instance.new('RemoteEvent').FireServer, function(self, ...)
+        if typeof(self) ~= 'Instance' or not self:IsA('RemoteEvent') or isUserTrolled then 
+            return oldFireServer(self, ...) 
+        end
+
+        if debugMode then
+            -- Debug print here if needed
+        end
+
+        if not tango then 
+            return oldFireServer(self, ...) 
+        end
+
+        if not isGaia and self == tango then 
+            return warn('Ban Attempt -> Drop') 
+        end
+
+        local args = {...}
+        
+        if self == tango then
+            local sprintData = rawget(args, 1)
+            local sprintValue = sprintData and rawget(sprintData, 1)
+            local randomValue = sprintData and rawget(sprintData, 2)
+
+            if typeof(randomValue) == 'number' and not (randomValue <= 4 and randomValue >= 2) then
+                print('[Tango Args]', randomValue <= 4, randomValue >= 2, randomValue, sprintValue)
+                return warn('Ban Attempt -> Tango')
+            elseif (sprintValue == 1 or sprintValue == 2) and randomValue < 3 then
+                print(randomValue)
+                print(sprintValue)
+                sprinting = sprintValue == 1
+                dechargeMana()
+            end
+
+        elseif self == dolorosa then
+            return warn('Ban Attempt -> Dolorosa')
+            
+        elseif self == fallDamage and (library.flags.noFallDamage or library.flags.collectorAutoFarm) and not checkcaller() then
+            return warn('Fall Damage -> Blocked')
+            
+        elseif self.Name == 'LeftClick' then
+            if library.flags.antiBackfire then
+                local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildWhichIsA('Tool')
+                if not tool then return oldFireServer(self, ...) end
+
+                local amount = spellValues[tool.Name]
+                amount = amount and amount[1]
+
+                if not amount then return oldFireServer(self, ...) end
+
+                local mana = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('Mana')
+                if mana and (mana.Value < amount.min or mana.Value > amount.max) then
+                    return
+                end
+            end
+            
+        elseif self.Name == 'RightClick' then
+            if library.flags.antiBackfire then
+                local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildWhichIsA('Tool')
+                if not tool then return oldFireServer(self, ...) end
+
+                local amount = spellValues[tool.Name]
+                amount = amount and amount[2]
+
+                if not amount then return oldFireServer(self, ...) end
+
+                local mana = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('Mana')
+                if mana and (mana.Value < amount.min or mana.Value > amount.max) then
+                    return
+                end
+            end
+            
+        elseif self == changeArea and library.flags.temperatureLock then
+            args[1] = 'Oresfall'
+            return oldFireServer(self, unpack(args))
+        end
+
+        return oldFireServer(self, ...)
+    end)
+
+    print("[BYPASS] ✓ FireServer hooked")
+
+    getgenv().remotes.loadKeys = true
+
+    -- FindFirstChild Hook for Gaia
+    if isGaia then
+        local soundService = game:GetService('SoundService')
+        local turrets = workspace.Turrets
+        local turretsBody = turrets:FindFirstChild('Body', true)
+        local map = workspace.Map
+        local killBrick = map:FindFirstChild('KillBrick', true)
+        local lavaBrick = map:FindFirstChild('Lava', true)
+        local robloxGui = CoreGui:FindFirstChild('RobloxGui')
+
+        local oldFindFirstChild
+        oldFindFirstChild = hookfunction(game.FindFirstChild, newcclosure(function(self, itemName, recursive)
+            if checkcaller() or typeof(self) ~= 'Instance' or typeof(itemName) ~= 'string' then 
+                return oldFindFirstChild(self, itemName, recursive) 
+            end
+
+            if itemName == 'Body' and self == turrets and recursive then
+                return turretsBody
+            elseif itemName == 'KB' and self == soundService then
+                return nil
+            elseif itemName == 'Lava' and self == map then
+                return lavaBrick
+            elseif itemName == 'KillBrick' and self == map then
+                return killBrick
+            elseif itemName == 'RobloxGui' and self == game and recursive then
+                return robloxGui
+            elseif itemName == 'Players' and self == game and recursive then
+                return Players
+            elseif itemName == 'Server Pinger' and self == game and recursive then
+                return nil
+            end
+
+            return oldFindFirstChild(self, itemName, recursive)
+        end))
+    end
+
+    local cameraMaxZoomDistance = LocalPlayer.CameraMaxZoomDistance
+    local oldNewIndex, oldNameCall, oldIndex
+    local requests = ReplicatedStorage:WaitForChild('Requests')
+    local myRemotes
+
+    local function onCharacterAdded(character)
+        if not character then return end
+        local myNewRemotes = character:WaitForChild('CharacterHandler') and character.CharacterHandler:WaitForChild('Remotes')
+        if not myNewRemotes then return end
+
+        myRemotes = myNewRemotes
+
+        task.delay(1, function()
+            ReplicatedStorage.Requests.GetMouse.OnClientInvoke = function()
+                local mouseT = {}
+
+                mouseT.Hit = Mouse.Hit
+                mouseT.Target = Mouse.Target
+                mouseT.UnitRay = Mouse.UnitRay
+                mouseT.X = Mouse.X
+                mouseT.Y = Mouse.Y
+
+                if library.flags.silentAim then
+                    -- Silent aim implementation would go here
+                end
+
+                if library.flags.spellStack then
+                    -- Spell stack implementation would go here
+                end
+
+                return mouseT
+            end
+        end)
+    end
+
+    onCharacterAdded(LocalPlayer.Character)
+    LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
+
+    local cachedRemotes = {}
+
+    oldIndex = hookmetamethod(game, '__index', function(self, p)
+        SX_VM_CNONE()
+        if not tango then
+            return oldIndex(self, p)
+        end
+
+        if p == 'MouseButton1Click' and IsA(self, 'GuiButton') and library.flags.autoBard then
+            local caller = getcallingscript()
+            caller = typeof(caller) == 'Instance' and oldIndex(caller, 'Parent')
+
+            if caller and oldIndex(caller, 'Name') == 'BardGui' then
+                local fakeSignal = {}
+                function fakeSignal.Connect(_, f)
+                    coroutine.wrap(function()
+                        local outerRing = FindFirstChild(self, 'OuterRing')
+                        if outerRing then
+                            repeat
+                                task.wait()
+                            until oldIndex(outerRing, 'Parent') == nil or outerRing.Size.X.Offset <= 135
+                            if oldIndex(outerRing, 'Parent') then
+                                f()
+                            end
+                        end
+                    end)()
+                end
+                fakeSignal.connect = fakeSignal.Connect
+                return fakeSignal
+            end
+        elseif self == LocalPlayer and p == 'CameraMaxZoomDistance' and not checkcaller() then
+            local stackTrace = debug.traceback()
+            if not string.find(stackTrace, 'CameraModule') then
+                return cameraMaxZoomDistance
+            end
+        end
+
+        return oldIndex(self, p)
+    end)
+
+    local getMouse = ReplicatedStorage.Requests.GetMouse
+
+    oldNewIndex = hookmetamethod(game, '__newindex', function(self, p, v)
+        SX_VM_CNONE()
+
+        if p == 'Parent' and IsA(self, 'Script') and oldIndex(self, 'Name') == 'CharacterHandler' and IsDescendantOf(self, LocalPlayer.Character) then
+            return warn('Ban Attempt -> Character Nil')
+        elseif tango and not checkcaller() then
+            if p == 'WalkSpeed' and IsA(self, 'Humanoid') and library.flags.speedHack then
+                return
+            elseif (p == 'Ambient' or p == 'Brightness') and self == Lighting and library.flags.fullbright then
+                return
+            elseif (p == 'FogEnd' or p == 'FogStart') and self == Lighting and library.flags.noFog then
+                return
+            end
+        elseif p == 'OnClientInvoke' and self == getMouse and not checkcaller() then
+            return
+        elseif self == LocalPlayer and p == 'CameraMaxZoomDistance' and not checkcaller() then
+            cameraMaxZoomDistance = v
+        end
+
+        return oldNewIndex(self, p, v)
+    end)
+
+    oldNameCall = hookmetamethod(game, '__namecall', function(self, ...)
+        SX_VM_CNONE()
+        if not getgenv().remotes.loadKeys or checkcaller() or not string.find(debug.traceback(), 'ControlModule') then
+            return oldNameCall(self, ...)
+        end
+
+        if isGaia then
+            local oldGetKey = getKey
+
+            local function getKeyWrapper(name, pwd)
+                local cachedRemote = cachedRemotes[name]
+
+                if cachedRemote and cachedRemote.Parent and (cachedRemote.Parent == requests or cachedRemote.Parent == myRemotes) then
+                    return cachedRemote
+                end
+
+                cachedRemotes[name] = coroutine.wrap(oldGetKey)(name, pwd)
+                return cachedRemotes[name]
+            end
+
+            if debugMode then
+                local getRemotes = (function()
+                    tango = getKeyWrapper(TANGO_PASSWORD, 'plum')
+                    setRemote('tango', tango)
+                    setRemote('fallDamage', getKeyWrapper(APPLY_FALL_DAMAGE_PASSWORD, 'plum'))
+                    setRemote('dodge', getKeyWrapper(DODGE_PASSWORD, 'plum'))
+                    setRemote('manaCharge', getKeyWrapper(SET_MANA_CHARGE_STATE_PASSWORD, 'plum'))
+                    setRemote('dialog', getKeyWrapper(POST_DIALOGUE_PASSWORD, 'plum'))
+                    setRemote('changeArea', getKeyWrapper('SetCurrentArea', 'plum'))
+                end)
+                coroutine.wrap(getRemotes)()
+            else
+                tango = getKeyWrapper(TANGO_PASSWORD, 'plum')
+                setRemote('tango', tango)
+                setRemote('fallDamage', getKeyWrapper(APPLY_FALL_DAMAGE_PASSWORD, 'plum'))
+                setRemote('dodge', getKeyWrapper(DODGE_PASSWORD, 'plum'))
+                setRemote('manaCharge', getKeyWrapper(SET_MANA_CHARGE_STATE_PASSWORD, 'plum'))
+                setRemote('dialog', getKeyWrapper(POST_DIALOGUE_PASSWORD, 'plum'))
+                setRemote('changeArea', getKeyWrapper('SetCurrentArea', 'plum'))
+            end
+        else
+            local character = oldIndex(LocalPlayer, 'Character')
+            local characterHandler = character and FindFirstChild(character, 'CharacterHandler')
+            local remotes = characterHandler and FindFirstChild(characterHandler, 'Remotes')
+
+            disableenvprotection()
+
+            setrawmetatable(false, {__index = function(_, p)
+                if p == 'Parent' then
+                    return true
+                elseif p == 'IsDescendantOf' then
+                    return true
+                end
+            end})
+
+            setRemote('tango', pcall(getKey, 'Drop', 'apricot'))
+            setRemote('fallDamage', pcall(getKey, 'FallDamage', 'apricot'))
+            setRemote('dodge', remotes and FindFirstChild(remotes, 'Dash'))
+            setRemote('manaCharge', pcall(getKey, 'Charge', 'apricot'))
+            setRemote('dialog', pcall(getKey, 'SendDialogue', 'apricot'))
+            setRemote('dolorosa', pcall(getKey, 'Dolorosa', 'apricot'))
+
+            setrawmetatable(false, nil)
+            enableenvprotection()
+        end
+
+        getgenv().remotes.loadKeys = false
+
+        task.delay(2, function()
+            getgenv().remotes.loadKeys = true
+        end)
+
+        return oldNameCall(self, ...)
+    end)
+
+    local function onCharAdded(character)
+        maid.charChildRemovedMana = character.ChildRemoved:Connect(function(obj)
+            if obj.Name == 'Sprinting' then
+                sprinting = false
+            end
+        end)
+
+        repeat
+            task.wait()
+        until character:FindFirstChild('CharacterHandler') and character.CharacterHandler:FindFirstChild('Input')
+
+        getgenv().remotes.loadKeys = true
+    end
+
+    LocalPlayer.CharacterAdded:Connect(onCharAdded)
+
+    if LocalPlayer.Character then
+        onCharAdded(LocalPlayer.Character)
+    end
+
+    print("[BYPASS] ✓ All hooks installed")
+end
+
+-- ============================================
+-- MOVEMENT FUNCTIONS
+-- ============================================
+function fly(toggle)
+    if not toggle then
+        maid.fly = nil
+        maid.flyBV = nil
+        return
+    end
+
+    maid.fly = RunService.Heartbeat:Connect(function()
+        local rootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('HumanoidRootPart')
+        if not rootPart then return end
+
+        local camera = workspace.CurrentCamera
+        if not camera then return end
+
+        maid.flyBV = (maid.flyBV and maid.flyBV.Parent and maid.flyBV) or Instance.new('BodyVelocity')
+        maid.flyBV.Parent = rootPart
+        maid.flyBV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        maid.flyBV.Velocity = camera.CFrame:VectorToWorldSpace(ControlModule:GetMoveVector() * library.flags.flySpeed)
+    end)
+end
+
+function spectatePlayer(playerName)
+    playerName = tostring(playerName)
+    local player = findPlayer(playerName)
+    local playerHumanoid = player and player.Character and player.Character:FindFirstChildOfClass('Humanoid')
+
+    if playerHumanoid then
+        workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+        workspace.CurrentCamera.CameraSubject = playerHumanoid
+    end
+end
+
+function knockYourself()
+    fallDamage:FireServer({math.random(), 1})
+end
+-- ============================================
+-- SET TABLES
+-- ============================================
+do -- // Set Trinkets
+        Trinkets = {
+            {
+                ["MeshId"] = "5204003946";
+                ["Name"] = "Goblet";
+            };
+            {
+                ["MeshId"] = "5196776695";
+                ["Name"] = "Ring";
+            };
+            {
+                ["MeshId"] = "5196782997";
+                ["Name"] = "Old Ring";
+            };
+            {
+                ["Name"] = "Emerald";
+            };
+            {
+                ["Name"] = "Ruby";
+            };
+            {
+                ["Name"] = "Sapphire";
+            };
+            {
+                ["Name"] = "Diamond";
+            };
+            {
+                ["Name"] = "Rift Gem";
+                ["Rare"] = true;
+            };
+            {
+                ["Name"] = "Fairfrozen";
+                ["Rare"] = true;
+            };
+            {
+                ["MeshId"] = "5204453430";
+                ["Name"] = "Ninja Scroll";
+            };
+            {
+                ["Name"] = "Old Amulet";
+                ["MeshId"] = "5196577540";
+            };
+            {
+                ["Name"] = "Amulet";
+                ["MeshId"] = "5196551436";
+            };
+            {
+                ["Name"] = "Idol Of The Forgotten";
+                ["ParticleEmitter"] = true;
+            };
+            {
+                ["Name"] = "Opal";
+                ["VertexColor"] = Vector3.new(1, 1, 1);
+                ["MeshType"] = "Sphere";
+            },
+            {
+                Name = "Candy";
+                MeshId = '4103271893'
+            },
+            {
+                ["Texture"] = "20443483";
+                ["Name"] = "Ya'alda";
+                ["Rare"] = true;
+            };
+            {
+                ["Texture"] = "1536547385";
+                ["Name"] = "Pheonix Down";
+                ["Rare"] = true;
+            };
+            {
+                ["Texture"] = "20443483";
+                ["ParticleEmitter"] = true;
+                ["PointLight"] = true;
+                ["Name"] = "Ice Essence";
+                ["Rare"] = true;
+            };
+            {
+                ["Name"] = "White King's Amulet";
+                ["Rare"] = true;
+            };
+            {
+                ["Name"] = "Lannis Amulet";
+                ["Rare"] = true;
+            };
+            {
+                ["Name"] = "Night Stone";
+                ["Rare"] = true;
+            };
+            {
+                ["Name"] = "Philosopher's Stone";
+                ["Rare"] = true;
+            };
+            {
+                ["Name"] = "Spider Cloak";
+                ["Rare"] = true;
+            };
+            {
+                ["Name"] = "Howler Friend";
+                ["Rare"] = true;
+                ["MeshId"] = "2520762076";
+            };
+            {
+                ["Name"] = "Scroom Key";
+                ["Rare"] = true;
+            },
+            {
+                Name = 'Mysterious Artifact',
+                Rare = true
+            }
+        };
+
+        for i, v in next, Trinkets do
+            trinketsData[v.Name] = v;
+        end;
+    end;
+
+    do 
+        local trinkets = {};
+        local ingredients = {};
+
+        local function onChildAdded(obj)
+            local isIngredient = obj.Parent == ingredientsFolder;
+            local isTrinket = not isIngredient;
+            local t = isIngredient and ingredients or trinkets;
+
+            if(isIngredient or (obj:FindFirstChild('Part') and obj.Part.Size == Vector3.new(1.5, 1.5, 1.5))) then
+                table.insert(t, obj);
+
+                local propertyWatched = isIngredient and 'Transparency' or 'Parent';
+                local connection;
+                connection = obj:GetPropertyChangedSignal(propertyWatched):Connect(function()
+                    task.wait();
+                    if(obj.Parent and isIngredient or not connection) then return end;
+
+                    if(obj:IsDescendantOf(game)) then return; end
+
+                    connection:Disconnect();
+                    connection = nil;
+
+                    table.remove(t, table.find(t, obj));
+                end);
+            end;
+        end;
+
+        task.spawn(function() 
+            if (library.flags.collectorAutoFarm) then
+                warn('[Auto Pickup] Not enabling cuz collector bot is on');
+                return;
+            end;
+
+            if(ingredientsFolder) then
+                for _, obj in next, ingredientsFolder:GetChildren() do
+                    task.spawn(onChildAdded, obj);
+                end;
+
+                ingredientsFolder.ChildAdded:Connect(onChildAdded);
+            end;
+
+            for _, obj in next, workspace:GetChildren() do
+                task.spawn(onChildAdded, obj);
+            end;
+
+            workspace.ChildAdded:Connect(onChildAdded);
+        end);
+
+        local function makeAutoPickup(maidName, t)
+            return function(toggle)
+                if(not toggle) then
+                    maid[maidName] = nil;
+                    return;
+                end;
+
+                local lastUpdate = 0;
+
+                maid[maidName] = RunService.RenderStepped:Connect(function()
+                    local rootPart = LocalPlayer.Character and LocalPlayer.Character.PrimaryPart;
+                    if(not rootPart or tick() - lastUpdate < 0.2) then return end;
+
+                    lastUpdate = tick();
+
+                    for i,v in next, t do
+                        if((rootPart.Position - v.Position).Magnitude <= 25) then
+                            local clickDetector = v:FindFirstChildWhichIsA('ClickDetector', true);
+                            if(clickDetector and clickDetector.MaxActivationDistance <= 100) then
+                                fireclickdetector(clickDetector, 1);
+                            end;
+                        end;
+                    end;
+                end);
+            end;
+        end;
+
+        autoPickup = makeAutoPickup('autoPickup', trinkets);
+        autoPickupIngredients = makeAutoPickup('autoPickupIngredients', ingredients);
+    end;
+
+-- ============================================
+-- SPECTATE SYSTEM
+-- ============================================
+local leaderboardGui = LocalPlayer:FindFirstChild('PlayerGui') and LocalPlayer.PlayerGui:FindFirstChild('LeaderboardGui')
+if leaderboardGui and not leaderboardGui.Enabled then
+    leaderboardGui.Enabled = true
+end
+
+task.spawn(function()
+    if not LocalPlayer.Character and not LocalPlayer.PlayerGui:FindFirstChild('LeaderboardGui') then
+        local newLeaderboardGui = StarterGui:FindFirstChild('LeaderboardGui'):Clone()
+        newLeaderboardGui.Parent = LocalPlayer.PlayerGui
+        LocalPlayer.CharacterAdded:Wait()
+        newLeaderboardGui:Destroy()
+    end
+end)
+
+local spectating
+local oldNamesColors = {}
+
+UserInputService.InputBegan:Connect(function(input)
+    if input.UserInputType ~= Enum.UserInputType.MouseButton2 then return end
+    if not LocalPlayer:FindFirstChild('PlayerGui') or not LocalPlayer.PlayerGui:FindFirstChild('LeaderboardGui') then return end
+
+    local leaderboardPlayers = LocalPlayer.PlayerGui.LeaderboardGui.MainFrame.ScrollingFrame:GetChildren()
+
+    local function getHoveredPlayer()
+        for i, v in next, leaderboardPlayers do
+            if v.TextTransparency ~= 0 and v.Name ~= "Prestige" then
+                return v
+            end
+        end
+    end
+
+    local label = getHoveredPlayer()
+    if not label then return end
+   print(label.Text:gsub('\226\128\142', ''):gsub('[ \t]', ''))
+    local player = Players:FindFirstChild(label.Text:gsub('\226\128\142', ''):gsub('[ \t]', ''))
+    if not player or not player.Character then return end
+
+    if player == LocalPlayer then
+        spectating = player
+    end
+
+    for i, v in next, leaderboardPlayers do
+        if not oldNamesColors[v] then
+            oldNamesColors[v] = v.TextColor3
+        end
+        v.TextColor3 = oldNamesColors[v]
+    end
+
+    if spectating ~= player then
+        spectating = player
+        spectatePlayer(player.Name)
+        label.TextColor3 = Color3.fromRGB(46, 204, 113)
+    else
+        spectating = nil
+        spectatePlayer(LocalPlayer.Name)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    if library.flags.logWhenNotFull then
+        local currentPlayers = #Players:GetPlayers()
+        local maxPlayers = Players.MaxPlayers
+
+        if currentPlayers < maxPlayers then
+            print(string.format("[Server Monitor] Server not full: %d/%d players", currentPlayers, maxPlayers))
+            kickPlayer(string.format("Server not full (%d/%d). Player '%s' left.", currentPlayers, maxPlayers, player.Name))
+        end
+    end
+
+    if spectating == player then
+        print("[Spectate] Spectated player left:", player.Name)
+        spectating = nil
+
+        pcall(function()
+            workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+            if LocalPlayer.Character then
+                local humanoid = LocalPlayer.Character:FindFirstChildOfClass('Humanoid')
+                if humanoid then
+                    workspace.CurrentCamera.CameraSubject = humanoid
+                end
+            end
+        end)
+    end
+end)
+
+-- ============================================
+-- GLOBALS
+-- ============================================
+getgenv().library = library
+
+print("\n✓✓✓ BYPASS LOADED ✓✓✓")
+
+-- ============================================
+-- UI CREATION
+-- ============================================
+local Window = Starlight:CreateWindow({
+    Name = "SGW Hub",
+    Subtitle = "v1.0",
+    Icon = 123456789,
+    LoadingSettings = {
+        Title = "SGW HUB",
+        Subtitle = "We the best",
+    },
+    FileSettings = {
+        ConfigFolder = "MyScript"
+    },
+})
+
+	Window.Instance.Sidebar.Player.PlayerIcon.Image = Players:GetUserThumbnailAsync(1, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+	Window.Instance.Sidebar.Player.Header.Text = " "
+	Window.Instance.Sidebar.Player.subheader.Text = " "
+
+function respawn()
+            local inDanger = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('Danger');
+            local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildWhichIsA('Humanoid');
+        if inDanger then
+                local combatWarning = Window:PromptDialog({
+                    Name = "In combat",
+                    Content = "You are in combat, are you sure you want to respawn now? You will lose a life.",
+                    Type = 1,
+                    Actions = { 
+                        Primary = {
+                            Name = "Yes",
+                            Icon = NebulaIcons:GetIcon("check", "Material"),
+                            Callback = function()
+                                humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildWhichIsA('Humanoid');
+                                if(not humanoid) then return end;
+                                humanoid.Health = 0; 
+                            end
+                        }, 
+                        {
+                            Name = "No",
+                            Callback = function()
+
+                            end
+                        },
+                    }
+                })
+            else
+                humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildWhichIsA('Humanoid');
+                if(not humanoid) then return end;
+                humanoid.Health = 0;        
+        end;
+            
+end;
+
+local Movement = Window:CreateTabSection("Movement")
+
+local moveTab = Movement:CreateTab({
+    Name = "Movement",
+    Icon = NebulaIcons:GetIcon('view_in_ar', 'Material'),
+    Columns = 2,
+}, "INDEX")
+
+local Groupbox = moveTab:CreateGroupbox({
+    Name = "General",
+    Column = 1,
+}, "INDEX")
+
+local flightToggle = Groupbox:CreateLabel({
+    Name = "Toggle Flight"
+}, "INDEX")
+
+local flightBind = flightToggle:AddBind({
+    HoldToInteract = false,
+    CurrentValue = "P",
+    Callback = function(Value)
+        library.flags.flight = Value
+        fly(library.flags.flight)
+    end,
+}, "INDEX")
+
+local killBricks = {};
+
+function removeKillBricks(toggle)
+        if(not toggle) then
+            maid.removeKillBricks = nil;
+        else
+            maid.removeKillBricks = RunService.Heartbeat:Connect(function()
+                local rootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('HumanoidRootPart');
+                if(not rootPart) then return end;
+
+                local inDanger = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('Danger');
+
+                if(rootPart.Position.Y <= -550 and not library.flags.flight and inDanger) then
+                    flightBind:Set(true);
+                end;
+            end);
+        end;
+
+        for i,v in next, killBricks do
+            v.Parent = not toggle and workspace or nil;
+        end;
+    end;
+
+task.spawn(function()
+        local killPartsObjects = {'KillBrick', 'Lava', 'PoisonField', 'PitKillBrick'};
+
+        local slate = Enum.Material.Slate;
+        local map = isGaia and workspace:FindFirstChild('Map') or workspace;
+
+        for i, v in next, map:GetChildren() do
+            if(v.Name == 'Part' and IsA(v, 'Part') and v.Material == slate and v.CanCollide == false and v.Transparency == 1) then
+                v.Transparency = 0.5;
+                v.Color = Color3.fromRGB(255, 0, 0);
+
+                local touchTransmitter = v:FindFirstChildWhichIsA('TouchTransmitter');
+
+                if(touchTransmitter) then
+                    touchTransmitter:Destroy();
+                end;
+            elseif(table.find(killPartsObjects, v.Name)) then
+                table.insert(killBricks, v);
+            end;
+        end;
+    end);
+
+local flyspeedSlider = Groupbox:CreateSlider({
+    Name = "Fly Speed",
+    Icon = NebulaIcons:GetIcon('chart-no-axes-column-increasing', 'Lucide'),
+    Range = {20, 150},
+    Increment = 1,
+    Callback = function(Value)
+        library.flags.flySpeed = Value
+    end,
+}, "INDEX")
+
+local fallToggle = Groupbox:CreateToggle({
+    Name = "noFall",
+    CurrentValue = false,
+    Style = 2,
+    Callback = function(Value)
+        library.flags.noFallDamage = Value
+    end,
+}, "INDEX")
+
+local killbrickToggle = Groupbox:CreateToggle({
+    Name = "Killbricks",
+    CurrentValue = false,
+    Style = 2,
+    Callback = function(Value)
+        library.flags.toggleKillbricks = Value
+        removeKillBricks(library.flags.toggleKillbricks)
+    end,
+}, "INDEX")
+
+local pickupToggle = Groupbox:CreateToggle({
+    Name = "Autopickup",
+    CurrentValue = false,
+    Style = 2,
+    Callback = function(Value)
+        library.flags.autopickup = Value
+        autoPickup(library.flags.autopickup)
+    end,
+}, "INDEX")
+
+local pickupIngredientsToggle = Groupbox:CreateToggle({
+    Name = "Autopickup Ingredients",
+    CurrentValue = false,
+    Style = 2,
+    Callback = function(Value)
+        library.flags.autopickupIngredients = Value
+        autoPickupIngredients(library.flags.autopickupIngredients)
+    end,
+}, "INDEX")
+
+-- ============================================
+-- PLAYERS TAB
+-- ============================================
+local playerSection = Window:CreateTabSection("Players")
+
+local playersTab = playerSection:CreateTab({
+    Name = "Players", 
+    Icon = NebulaIcons:GetIcon('view_in_ar', 'Material'),
+    Columns = 2,
+}, "INDEX")
+
+local selfTab = playerSection:CreateTab({
+    Name = "Self",
+    Icon = NebulaIcons:GetIcon('view_in_ar', 'Material'),
+    Columns = 2,
+}, "INDEX")
+
+local playerGroupBox = playersTab:CreateGroupbox({
+    Name = "Players",
+    Column = 1,
+}, "INDEX")
+
+local selfGroupBox = selfTab:CreateGroupbox({
+    Name = "Self",
+    Column = 1,
+}, "INDEX")
+
+
+
+local logToggle = playerGroupBox:CreateToggle({
+    Name = "Log when server isn't full",
+    CurrentValue = false,
+    Style = 2,
+    Callback = function(Value)
+        library.flags.logWhenNotFull = Value
+    end,
+}, "INDEX")
+
+local selfKnock = selfGroupBox:CreateButton({
+    Name = "Knock Self",
+    Icon = NebulaIcons:GetIcon('check', 'Material'),
+    Callback = function()
+        local Dialog = Window:PromptDialog({
+            Name = "Knock yourself",
+            Content = "Are you sure you want to knock yourself?",
+            Type = 1,
+            Actions = { 
+                Primary = {
+                    Name = "Yes",
+                    Icon = NebulaIcons:GetIcon("check", "Material"),
+                    Callback = function()
+                        knockYourself()
+                    end
+                }, 
+                {
+                    Name = "No",
+                    Callback = function() end
+                },
+            }
+        })
+    end,
+}, "INDEX")
+
+local selfRespawn = selfGroupBox:CreateButton({
+    Name = "Respawn self",
+    Icon = NebulaIcons:GetIcon('check', 'Material'),
+    Callback = function()
+        respawn()
+    end,
+}, "INDEX")
+
+Sense.Load()
