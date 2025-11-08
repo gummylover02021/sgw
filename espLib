@@ -141,8 +141,8 @@ self.character = interface.getCharacter(self.player);
 local children = getChildren(self.character);
 for i = 1, #children do
 local part = children[i];
-print(part.Name)
-if part:FindFirstChild("FakeHumanoid") then
+--print(part.Name)
+if part:FindFirstChild("FakeHumanoid") and playerName ~= part.Name then
 	playerName = part.Name;
 end
 end
