@@ -132,6 +132,7 @@ function EspObject:_create(class, properties)
 end
 
 function EspObject:Construct()
+local interface = self.interface;
 	self.charCache = {};
 	self.childCount = 0;
 	self.bin = {};
