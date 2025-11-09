@@ -207,6 +207,22 @@ function EspObject:Destruct()
 	clear(self);
 end
 
+self.player.CharacterAdded:Connect(function(c)
+local playerName;
+self.character = c;
+if self.character then
+local children = getChildren(self.character);
+for i = 1, #children do
+local part = children[i];
+--print(part.Name)
+if part:FindFirstChild("FakeHumanoid") then
+	playerName = part.Name;
+self.drawings.visible.name = { Text = playerName, Center = true, Visible = false }
+end
+end
+end
+end)
+
 function EspObject:Update()
 	local interface = self.interface;
 
